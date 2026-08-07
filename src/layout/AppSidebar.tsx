@@ -16,6 +16,7 @@ import {
   PlugInIcon,
   TableIcon,
   UserCircleIcon,
+  ChatIcon,
 } from "../icons/index";
 import SidebarWidget from "./SidebarWidget";
 
@@ -31,6 +32,11 @@ const navItems: NavItem[] = [
     icon: <GridIcon />,
     name: "Dashboard",
     subItems: [{ name: "Ecommerce", path: "/", pro: false }],
+  },
+  {
+    icon: <ChatIcon />,
+    name: "Messages",
+    path: "/chat",
   },
   {
     icon: <CalenderIcon />,
@@ -238,29 +244,24 @@ const AppSidebar: React.FC = () => {
 
   useEffect(() => {
     // Check if the current path matches any submenu item
-    let submenuMatched = false;
+    let matchedSubmenu: { type: "main" | "others"; index: number } | null = null;
+
     ["main", "others"].forEach((menuType) => {
       const items = menuType === "main" ? navItems : othersItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
-              setOpenSubmenu({
-                type: menuType as "main" | "others",
-                index,
-              });
-              submenuMatched = true;
+              matchedSubmenu = { type: menuType as "main" | "others", index };
             }
           });
         }
       });
     });
 
-    // If no submenu item matches, close the open submenu
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [pathname,isActive]);
+    // Update submenu state
+    setOpenSubmenu(matchedSubmenu);
+  }, [pathname, isActive]);
 
   useEffect(() => {
     // Set the height of the submenu items when the submenu is opened
@@ -374,7 +375,6 @@ const AppSidebar: React.FC = () => {
             </div>
           </div>
         </nav>
-        {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
       </div>
     </aside>
   );
