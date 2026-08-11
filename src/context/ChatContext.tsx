@@ -2,6 +2,12 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
+export interface MessageAttachment {
+  url: string;
+  name: string;
+  type: string;
+}
+
 export interface Message {
   id: string;
   senderId: string;
@@ -10,6 +16,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   isOwn: boolean;
+  attachment?: MessageAttachment;
 }
 
 export interface Conversation {
@@ -27,7 +34,7 @@ interface ChatContextType {
   activeConversation: Conversation | null;
   messages: Message[];
   setActiveConversation: (conversation: Conversation | null) => void;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string, attachment?: MessageAttachment) => void;
   isConnected: boolean;
 }
 
@@ -109,28 +116,34 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [messages, setMessages] = useState<Message[]>(demoMessages);
   const [isConnected, setIsConnected] = useState(true);
 
-  const sendMessage = useCallback((content: string) => {
-    if (!activeConversation || !content.trim()) return;
+  const sendMessage = useCallback((content: string, attachment?: MessageAttachment) => {
+    if (!activeConversation) return;
 
+    const hasContent = content.trim() || attachment;
+    if (!hasContent) return;
+
+    const attachmentText = attachment ? `\n[Attachment: ${attachment.name}]` : '';
     const newMessage: Message = {
       id: Date.now().toString(),
       senderId: 'me',
       senderName: 'Maria',
       senderAvatar: '/images/chat/chat.jpg',
-      content: content.trim(),
+      content: content.trim() + attachmentText,
       timestamp: new Date(),
       isOwn: true,
+      attachment,
     };
 
     setMessages(prev => [...prev, newMessage]);
 
     // Update last message in conversation
+    const displayMessage = attachment ? `📎 ${attachment.name}` : content.trim();
     setConversations(prev =>
       prev.map(conv =>
         conv.id === activeConversation.id
           ? {
               ...conv,
-              lastMessage: content.trim(),
+              lastMessage: displayMessage,
               lastMessageTime: new Date(),
             }
           : conv
