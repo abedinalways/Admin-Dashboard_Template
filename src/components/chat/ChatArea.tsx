@@ -3,11 +3,42 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useChat } from "@/context/ChatContext";
 import Image from "next/image";
+// Icon components
+const CameraIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
+const PaperclipIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+  </svg>
+);
+
+const XIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+  </svg>
+);
 
 const ChatArea: React.FC = () => {
   const { activeConversation, messages, sendMessage } = useChat();
   const [newMessage, setNewMessage] = useState("");
+  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<string | null>(null);
+  const [attachmentType, setAttachmentType] = useState<string>('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -18,9 +49,17 @@ const ChatArea: React.FC = () => {
   }, [messages]);
 
   const handleSend = () => {
-    if (newMessage.trim()) {
-      sendMessage(newMessage);
+    if (newMessage.trim() || attachment) {
+      const attachmentData = attachment ? {
+        url: attachmentPreview || '',
+        name: attachment.name,
+        type: attachmentType,
+      } : undefined;
+      sendMessage(newMessage, attachmentData);
       setNewMessage("");
+      setAttachment(null);
+      setAttachmentPreview(null);
+      setAttachmentType('');
     }
   };
 
@@ -29,6 +68,34 @@ const ChatArea: React.FC = () => {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachment(file);
+      setAttachmentType(file.type);
+      const previewUrl = URL.createObjectURL(file);
+      setAttachmentPreview(previewUrl);
+    }
+  };
+
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click();
+  };
+
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
+    setAttachmentPreview(null);
+    setAttachmentType('');
+  };
+
+  const closeImagePreview = () => {
+    setSelectedImage(null);
   };
 
   const formatTime = (date: Date) => {
@@ -167,6 +234,50 @@ const ChatArea: React.FC = () => {
                     }`}
                   >
                     <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    
+                    {message.attachment && (
+                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                        {message.attachment.type.startsWith('image/') ? (
+                          <div className="relative inline-block">
+                            <Image
+                              src={message.attachment.url}
+                              alt={message.attachment.name}
+                              width={200}
+                              height={200}
+                              className="rounded-lg object-cover max-w-full cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => {
+                                setSelectedImage(message.attachment!.url);
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-700 rounded-lg">
+                            <svg className="w-8 h-8 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1">
+                              {message.attachment.name}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const link = document.createElement('a');
+                                link.href = message.attachment!.url;
+                                link.download = message.attachment!.name;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors flex-shrink-0"
+                              title="Download"
+                            >
+                              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div
                     className={`flex items-center gap-1 mt-1 ${
@@ -200,69 +311,123 @@ const ChatArea: React.FC = () => {
 
       {/* Message Input */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-        <div className="flex items-end gap-2">
-          <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0">
-            <svg
-              className="w-5 h-5 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+        {/* Attachment Preview */}
+        {attachmentPreview && (
+          <div className="mb-3 flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+            {attachmentType.startsWith("image/") ? (
+              <Image
+                src={attachmentPreview}
+                alt="Preview"
+                width={48}
+                height={48}
+                className="rounded-lg object-cover"
               />
-            </svg>
-          </button>
-          <button className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0">
-            <svg
-              className="w-5 h-5 text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            ) : (
+              <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-gray-900 dark:text-white truncate">{attachment?.name}</p>
+            </div>
+            <button
+              onClick={removeAttachment}
+              className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-              />
-            </svg>
+              <XIcon />
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          {/* Camera Button */}
+          <button
+            onClick={handleCameraClick}
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0"
+            title="Camera"
+          >
+            <CameraIcon />
           </button>
-          <div className="flex-1 relative">
+
+          {/* Attachment Button */}
+          <button
+            onClick={handleAttachmentClick}
+            className="p-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0"
+            title="Attach file"
+          >
+            <PaperclipIcon />
+          </button>
+
+          {/* Hidden file inputs */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileSelect}
+            className="hidden"
+            accept="image/*,.pdf,.doc,.docx"
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            capture="environment"
+            onChange={handleFileSelect}
+            className="hidden"
+            accept="image/*"
+          />
+
+          {/* Text Input */}
+          <div className="flex-1">
             <textarea
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyPress={handleKeyPress}
               placeholder="Type a new message.."
               rows={1}
-              className="w-full px-4 py-3 pr-12 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none"
-              style={{ minHeight: "48px", maxHeight: "120px" }}
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 resize-none"
+              style={{ minHeight: "40px", maxHeight: "120px" }}
             />
           </div>
+
+          {/* Send Button */}
           <button
             onClick={handleSend}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() && !attachment}
             className="p-2.5 bg-brand-500 hover:bg-brand-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg transition-colors flex-shrink-0"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-              />
-            </svg>
+            <SendIcon />
           </button>
         </div>
       </div>
+
+      {/* Image Preview Modal */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={closeImagePreview}
+        >
+          <div className="relative max-w-5xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <button
+              onClick={closeImagePreview}
+              className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full transition-colors z-10"
+              aria-label="Close preview"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <Image
+              src={selectedImage}
+              alt="Preview"
+              width={800}
+              height={800}
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
